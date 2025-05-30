@@ -1,0 +1,126 @@
+<!DOCTYPE html>
+<html lang="eng">
+<head>
+  <meta charset="UTF-8" />
+  <title>Popular queries</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      background: black;
+      color: #eee;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      overflow: hidden;
+    }
+    #background-canvas {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      pointer-events: none;
+      z-index: 0;
+    }
+    #app {
+      position: relative;
+      z-index: 10;
+      max-width: 800px;
+      margin: 0 auto;
+      padding: 24px;
+      height: 100vh;
+      overflow-y: auto;
+    }
+  </style>
+</head>
+<body>
+<canvas id="background-canvas"></canvas>
+
+<div id="app">
+  <h1 class="text-2xl font-bold mb-6 text-center">Top 10 Popular Searches</h1>
+
+  {% if queries %}
+    <ul class="space-y-3">
+      {% for q in queries %}
+        <li class="p-3 bg-white rounded flex justify-between items-center">
+          <span class="text-black">{{ q.query }}</span>
+          <span class="text-sm text-gray-600">({{ q.count }} times)</span>
+        </li>
+      {% endfor %}
+    </ul>
+  {% else %}
+    <p class="text-center text-gray-400">No popular searches data available yet.</p>
+  {% endif %}
+
+  <div class="mt-8 text-center">
+    <a href="/" class="underline text-gray-400 hover:text-white">Back to Home</a>
+  </div>
+</div>
+
+<script>
+  const canvas = document.getElementById('background-canvas');
+  const ctx = canvas.getContext('2d');
+  let w, h;
+
+  function resizeCanvas() {
+    w = window.innerWidth;
+    h = window.innerHeight;
+    canvas.width = w * devicePixelRatio;
+    canvas.height = h * devicePixelRatio;
+    canvas.style.width = w + 'px';
+    canvas.style.height = h + 'px';
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.scale(devicePixelRatio, devicePixelRatio);
+  }
+
+  resizeCanvas();
+  window.addEventListener('resize', resizeCanvas);
+
+  const circles = [];
+
+  class Circle {
+    constructor(x, y) {
+      this.x = x;
+      this.y = y;
+      this.radius = 40 + Math.random() * 30;
+      this.alpha = 0.5 + Math.random() * 0.5;
+      this.fade = 0.01 + Math.random() * 0.02;
+    }
+    update() {
+      this.alpha -= this.fade;
+      if (this.alpha < 0) this.alpha = 0;
+    }
+    draw() {
+      const gradient = ctx.createRadialGradient(this.x, this.y, 0, this.x, this.y, this.radius);
+      gradient.addColorStop(0, `rgba(255, 255, 255, ${this.alpha})`);
+      gradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
+      ctx.fillStyle = gradient;
+      ctx.beginPath();
+      ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  window.addEventListener('mousemove', e => {
+    circles.push(new Circle(e.clientX, e.clientY));
+    if (circles.length > 60) circles.shift();
+  });
+
+  function animate() {
+    ctx.clearRect(0, 0, w, h);
+    for (let i = circles.length - 1; i >= 0; i--) {
+      circles[i].update();
+      if (circles[i].alpha <= 0) {
+        circles.splice(i, 1);
+      } else {
+        circles[i].draw();
+      }
+    }
+    requestAnimationFrame(animate);
+  }
+
+  animate();
+</script>
+</body>
+</html>

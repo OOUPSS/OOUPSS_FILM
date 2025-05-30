@@ -1,0 +1,280 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Movie Search</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/noUiSlider/15.6.1/nouislider.min.css" rel="stylesheet" />
+  <style>
+    html, body {
+      margin: 0;
+      padding: 0;
+      height: 100%;
+      background: black;
+      color: #eee;
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      overflow: hidden;
+    }
+    #background-canvas {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100vw;
+      height: 100vh;
+      pointer-events: none;
+      z-index: 0;
+    }
+    #app {
+      position: relative;
+      z-index: 10;
+      max-width: 1200px;
+      margin: 0 auto;
+      padding: 24px;
+      height: 100vh;
+      overflow-y: auto;
+    }
+    .genre-checkboxes {
+      max-height: 250px;
+      overflow-y: auto;
+      background: #111;
+      padding: 10px;
+      border-radius: 8px;
+      border: 1px solid #333;
+      transition: max-height 0.3s ease;
+    }
+    .genre-checkboxes.hidden {
+      max-height: 0;
+      padding: 0 10px;
+      overflow: hidden;
+      border: none;
+    }
+    .genre-checkboxes label {
+      display: block;
+      margin-bottom: 6px;
+      cursor: pointer;
+    }
+    .genre-checkboxes input[type="checkbox"] {
+      margin-right: 8px;
+      accent-color: white;
+    }
+    #year-slider {
+      margin-top: 10px;
+    }
+    .btn-like-search {
+      display: block;
+      width: 100%;
+      padding: 12px 0;
+      background: white;
+      color: black;
+      font-weight: bold;
+      border-radius: 0.375rem;
+      text-decoration: none;
+      text-align: center;
+      transition: background-color 0.3s ease;
+    }
+    .btn-like-search:hover {
+      background-color: #d1d5db;
+    }
+  </style>
+</head>
+<body>
+<canvas id="background-canvas"></canvas>
+
+<div id="app" class="max-w-7xl mx-auto">
+  <h1 class="text-4xl font-bold mb-6 text-center">Movie Search</h1>
+
+  <div class="flex gap-8">
+
+    <!-- Left Sidebar -->
+    <div class="w-1/3 space-y-8">
+
+      <!-- Top 10 Most Violent Films -->
+      <div class="bg-white text-black rounded shadow overflow-y-auto" style="max-height: calc(100vh - 210px); padding-top: 0;">
+        <div class="sticky top-0 bg-white z-20 border-b border-gray-200">
+          <h2 class="text-xl font-bold px-4 py-3 m-0">Top 10 Most Violent Films</h2>
+        </div>
+        {% if top_films %}
+        <ul class="space-y-3 text-sm px-4 pb-4">
+          {% for film in top_films %}
+          <li class="bg-gray-100 p-3 rounded hover:bg-gray-200 transition">
+            <div class="font-semibold">{{ film.title }}</div>
+            <div class="text-xs text-gray-600">
+              {{ film.release_year }} • {{ film.length }} min • ⭐ {{ film.rating }}<br>
+            </div>
+          </li>
+          {% endfor %}
+        </ul>
+        {% else %}
+        <p class="text-gray-500 px-4 pb-4">No data available.</p>
+        {% endif %}
+      </div>
+
+      <!-- Link to Popular Searches -->
+      <div>
+        <a href="{{ url_for('popular') }}" class="btn-like-search">View Popular Searches</a>
+      </div>
+
+    </div>
+
+    <!-- Main Search Form -->
+    <div class="w-2/3">
+      <form action="/search" method="POST" id="search-form" class="grid grid-cols-3 gap-6">
+
+        <!-- Keyword -->
+        <div class="col-span-3">
+          <input type="text" name="keyword" id="keyword" placeholder="Enter keyword..." class="w-full p-3 rounded bg-white text-black focus:outline-none focus:ring-2 focus:ring-black" />
+        </div>
+
+        <!-- Genres -->
+        <div>
+          <h2 class="text-xl mb-3 toggle-header" id="toggle-genres">
+            Genres
+            <span class="arrow" id="genres-arrow">▶</span>
+          </h2>
+          <div class="genre-checkboxes hidden" id="genre-list">
+            {% for genre in genres %}
+            <label>
+              <input type="checkbox" name="genres[]" value="{{ genre }}">
+              {{ genre }}
+            </label>
+            {% endfor %}
+          </div>
+        </div>
+
+        <!-- Year slider -->
+        <div class="col-span-2">
+          <h2 class="text-xl mb-3">Release Year</h2>
+          <div id="year-slider"></div>
+          <div class="flex justify-between mt-2 text-sm text-gray-400">
+            <span id="year-from-label"></span>
+            <span id="year-to-label"></span>
+          </div>
+          <input type="hidden" name="year_from" id="year-from-input" />
+          <input type="hidden" name="year_to" id="year-to-input" />
+        </div>
+
+        <!-- Sort By -->
+        <div class="col-span-3">
+          <label for="sort" class="block text-xl mb-2">Sort By</label>
+          <select name="sort" id="sort" class="w-full p-3 rounded bg-white text-black focus:outline-none focus:ring-2 focus:ring-black">
+            <option value="title_asc">Title (A-Z)</option>
+            <option value="title_desc">Title (Z-A)</option>
+            <option value="year_asc">Year (Oldest First)</option>
+            <option value="year_desc">Year (Newest First)</option>
+            <option value="length_desc">Duration (Longest First)</option>
+          </select>
+        </div>
+
+        <div class="col-span-3">
+          <button type="submit" class="w-full py-3 bg-white text-black font-bold rounded hover:bg-gray-300 transition">Search</button>
+        </div>
+      </form>
+    </div>
+
+  </div>
+</div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/noUiSlider/15.6.1/nouislider.min.js"></script>
+<script>
+  // noUiSlider init
+  const slider = document.getElementById('year-slider');
+  const yearFromLabel = document.getElementById('year-from-label');
+  const yearToLabel = document.getElementById('year-to-label');
+  const yearFromInput = document.getElementById('year-from-input');
+  const yearToInput = document.getElementById('year-to-input');
+
+  noUiSlider.create(slider, {
+    start: [1990, {{ current_year }}],
+    connect: true,
+    step: 1,
+    range: {
+      'min': 1990,
+      'max': {{ current_year }}
+    },
+    format: {
+      to: value => Math.round(value),
+      from: value => Number(value)
+    }
+  });
+
+  slider.noUiSlider.on('update', (values) => {
+    yearFromLabel.textContent = values[0];
+    yearToLabel.textContent = values[1];
+    yearFromInput.value = values[0];
+    yearToInput.value = values[1];
+  });
+
+  // Toggle genres panel
+  const toggleHeader = document.getElementById('toggle-genres');
+  const genreList = document.getElementById('genre-list');
+  const arrow = document.getElementById('genres-arrow');
+
+  toggleHeader.addEventListener('click', () => {
+    genreList.classList.toggle('hidden');
+    arrow.classList.toggle('open');
+  });
+
+  // Canvas glowing circles effect
+  const canvas = document.getElementById('background-canvas');
+  const ctx = canvas.getContext('2d');
+  let w, h;
+
+  function resizeCanvas() {
+    w = window.innerWidth;
+    h = window.innerHeight;
+    canvas.width = w * devicePixelRatio;
+    canvas.height = h * devicePixelRatio;
+    canvas.style.width = w + 'px';
+    canvas.style.height = h + 'px';
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.scale(devicePixelRatio, devicePixelRatio);
+  }
+  resizeCanvas();
+  window.addEventListener('resize', resizeCanvas);
+
+  const circles = [];
+
+  class Circle {
+    constructor(x, y) {
+      this.x = x;
+      this.y = y;
+      this.radius = 40 + Math.random() * 30;
+      this.alpha = 0.5 + Math.random() * 0.5;
+      this.fade = 0.01 + Math.random() * 0.02;
+    }
+    update() {
+      this.alpha -= this.fade;
+      if (this.alpha < 0) this.alpha = 0;
+    }
+    draw() {
+      const gradient = ctx.createRadialGradient(this.x, this.y, 0, this.x, this.y, this.radius);
+      gradient.addColorStop(0, `rgba(255, 255, 255, ${this.alpha})`);
+      gradient.addColorStop(1, 'rgba(255, 255, 255, 0)');
+      ctx.fillStyle = gradient;
+      ctx.beginPath();
+      ctx.arc(this.x, this.y, this.radius, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  window.addEventListener('mousemove', e => {
+    circles.push(new Circle(e.clientX, e.clientY));
+    if (circles.length > 60) circles.shift();
+  });
+
+  function animate() {
+    ctx.clearRect(0, 0, w, h);
+    for(let i = circles.length - 1; i >= 0; i--) {
+      circles[i].update();
+      if (circles[i].alpha <= 0) {
+        circles.splice(i, 1);
+      } else {
+        circles[i].draw();
+      }
+    }
+    requestAnimationFrame(animate);
+  }
+  animate();
+</script>
+</body>
+</html>
